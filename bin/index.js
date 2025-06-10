@@ -171,7 +171,7 @@ function createZip(folderPath, outputZipPath) {
     }
 
     await createZip(outputFolder, zipOutputPath);
-    fs.moveSync(zipOutputPath, path.join (outputFolder, fileName+'.zip'), { overwrite: false });
+    fs.moveSync(zipOutputPath, path.join (outputFolder, fileName+'.zip'), { overwrite: true });
     console.log('🎉 Klaar!');
   } catch (err) {
     console.error('❌ Fout:', err);
