@@ -7,3 +7,5 @@ build
 coverage
 .env
 *.log
+.gitignore
+package-lock.json
