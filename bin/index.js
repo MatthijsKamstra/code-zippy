@@ -12,9 +12,44 @@ if (!sourceFolder) {
   process.exit(1);
 }
 
+if (process.argv.includes('--version')) {
+  console.log('code-zippy version 1.0.0');
+  process.exit(0);
+}
+
+if (args.includes('-h') || args.includes('--help')) {
+  console.log(`Usage: code-zippy <folder> [options]
+
+Zipt een folder met code, genereert een mappenstructuur en samenvattingen — ideaal voor LLM's.
+
+Positional arguments:
+  <folder>            Pad naar de rootfolder met je code
+
+Options:
+  -h, --help          Toon deze helptekst
+  -o, --output <pad>  Pad voor outputmap (default: ./output)
+  -z, --zip <pad>     Naam/pad van het zipbestand (default: ./output.zip)
+  -s, --structure     Toon alleen de folderstructuur in terminal
+  --no-chunks         Sla het opdelen in tekstchunks over
+  --no-summary        Sla het maken van samenvattingen over
+  --ignore <file>     Eigen ignore-bestand gebruiken (default: .code-zippy-ignore)
+
+Voorbeeld:
+  code-zippy ./mijn-project
+  code-zippy ./src -o ./tmp -z ./archief.zip --no-summary
+
+📁 Let op:
+Gebruik een '.code-zippy-ignore' bestand in je projectfolder om folders uit te sluiten.
+
+Gemaakt met ❤️ voor LLM-gebruik.`);
+  process.exit(0);
+}
+
+
 const absoluteSource = path.resolve(sourceFolder);
-const outputFolder = path.join(process.cwd(), '_output');
-const zipOutputPath = path.join(process.cwd(), '_output.zip');
+const fileName = '_code-zippy-output';
+const outputFolder = path.join(process.cwd(), fileName);
+const zipOutputPath = path.join(process.cwd(), fileName+'.zip');
 
 // Lees .code-zippy-ignore
 function readIgnoreList(root) {
@@ -136,6 +171,7 @@ function createZip(folderPath, outputZipPath) {
     }
 
     await createZip(outputFolder, zipOutputPath);
+    fs.moveSync(zipOutputPath, path.join (outputFolder, fileName+'.zip'), { overwrite: false });
     console.log('🎉 Klaar!');
   } catch (err) {
     console.error('❌ Fout:', err);
