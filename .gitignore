@@ -1,4 +1,5 @@
 _output.zip
-setup.sh
 _output/*
 _code-zippy-output/*
+code-zippy-temp/*
+setup.sh
