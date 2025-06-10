@@ -12,11 +12,17 @@ While developing, use:
 npm link
 ```
 
+Check if it works
+
+```bash
+npm list -g
+```
+
 This:
 
-* Creates a global symlink to your current package folder.
-* Lets you call `code-zippy` from the command line, as if it were globally installed.
-* Automatically uses your latest local code — no need to reinstall each time.
+- Creates a global symlink to your current package folder.
+- Lets you call `code-zippy` from the command line, as if it were globally installed.
+- Automatically uses your latest local code — no need to reinstall each time.
 
 To unlink:
 
@@ -47,7 +53,6 @@ Or if it's in a git repo:
 npm install -g git+https://github.com/MatthijsKamstra/code-zippy.git
 ```
 
-
 ### ✅ Ignore Build Output During Dev
 
 Your `.code-zippy-ignore` includes:
@@ -73,5 +78,3 @@ This is good — it avoids zipping the dev clutter.
 | Install globally elsewhere | `npm install -g ./code-zippy` |
 | Prepare for npm publish    | `npm pack` or `npm publish`   |
 | Run CLI                    | `code-zippy ./my-folder`      |
-
-

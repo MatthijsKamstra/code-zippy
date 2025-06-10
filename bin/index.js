@@ -49,7 +49,7 @@ Gemaakt met ❤️ voor LLM-gebruik.`);
 const absoluteSource = path.resolve(sourceFolder);
 const fileName = '_code-zippy-output';
 const outputFolder = path.join(process.cwd(), fileName);
-const zipOutputPath = path.join(process.cwd(), fileName+'.zip');
+const zipOutputPath = path.join(process.cwd(), fileName + '.zip');
 
 // Lees .code-zippy-ignore
 function readIgnoreList(root) {
@@ -98,6 +98,12 @@ function getFolderStructure(dir, ignoreList, prefix = '') {
 function readFiles(files) {
   return files.map(file => ({
     path: file,
+    relativePath: path.relative(absoluteSource, file),
+    content: fs.readFileSync(file, 'utf-8'),
+  }));
+}
+function readFiles2(files) {
+  return files.map(file => ({
     relativePath: path.relative(absoluteSource, file),
     content: fs.readFileSync(file, 'utf-8'),
   }));
@@ -151,6 +157,9 @@ function createZip(folderPath, outputZipPath) {
     const filePaths = getAllFiles(absoluteSource, [], ignoreList);
     const files = readFiles(filePaths);
 
+    const files2 = readFiles2(filePaths);
+    await fs.writeJSON(path.join(outputFolder, 'files.json'), files2, { spaces: 2 });
+
     for (const file of files) {
       const targetPath = path.join(outputFolder, 'files', file.relativePath);
       await fs.ensureDir(path.dirname(targetPath));
@@ -171,7 +180,7 @@ function createZip(folderPath, outputZipPath) {
     }
 
     await createZip(outputFolder, zipOutputPath);
-    fs.moveSync(zipOutputPath, path.join (outputFolder, fileName+'.zip'), { overwrite: true });
+    fs.moveSync(zipOutputPath, path.join(outputFolder, fileName + '.zip'), { overwrite: true });
     console.log('🎉 Klaar!');
   } catch (err) {
     console.error('❌ Fout:', err);

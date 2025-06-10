@@ -9,3 +9,5 @@ coverage
 *.log
 .gitignore
 package-lock.json
+LICENSE
+_code-zippy-output
