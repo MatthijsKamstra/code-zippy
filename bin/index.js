@@ -3,66 +3,52 @@
 const fs = require('fs-extra');
 const path = require('path');
 const archiver = require('archiver');
+const { program } = require('commander');
+const packageJson = require('../package.json');
 
-const args = process.argv.slice(2);
-const sourceFolder = args[0];
+program
+  .name('code-zippy')
+  .description('Zipt een folder met code, genereert een mappenstructuur en samenvattingen — ideaal voor LLM\'s.')
+  .version(packageJson.version)
+  .argument('<folder>', 'Pad naar de rootfolder met je code')
+  .option('-o, --output <pad>', 'Pad voor outputmap', './_code-zippy-output')
+  .option('-z, --zip <pad>', 'Naam van het zipbestand', './_code-zippy-output.zip')
+  .option('-s, --structure', 'Toon alleen de folderstructuur in terminal')
+  .option('--no-chunks', 'Sla het opdelen in tekstchunks over')
+  .option('--no-summary', 'Sla het maken van samenvattingen over')
+  .option('--ignore <file>', 'Gebruik een ander ignore-bestand', '.code-zippy-ignore')
+  .parse();
+
+const options = program.opts();
+const sourceFolder = path.resolve(program.args[0]);
+const outputFolder = path.resolve(options.output);
+const zipOutputPath = path.resolve(options.zip);
+const ignoreFile = options.ignore;
 
 if (!sourceFolder) {
-  console.error('❌ Gebruik: code-zippy <pad-naar-map>');
-  process.exit(1);
+  console.error('❌ Je moet een map opgeven.');
+  program.help();
+  // process.exit(1);
 }
 
-if (process.argv.includes('--version')) {
-  console.log('code-zippy version 1.0.0');
-  process.exit(0);
-}
-
-if (args.includes('-h') || args.includes('--help')) {
-  console.log(`Usage: code-zippy <folder> [options]
-
-Zipt een folder met code, genereert een mappenstructuur en samenvattingen — ideaal voor LLM's.
-
-Positional arguments:
-  <folder>            Pad naar de rootfolder met je code
-
-Options:
-  -h, --help          Toon deze helptekst
-  -o, --output <pad>  Pad voor outputmap (default: ./output)
-  -z, --zip <pad>     Naam/pad van het zipbestand (default: ./output.zip)
-  -s, --structure     Toon alleen de folderstructuur in terminal
-  --no-chunks         Sla het opdelen in tekstchunks over
-  --no-summary        Sla het maken van samenvattingen over
-  --ignore <file>     Eigen ignore-bestand gebruiken (default: .code-zippy-ignore)
-
-Voorbeeld:
-  code-zippy ./mijn-project
-  code-zippy ./src -o ./tmp -z ./archief.zip --no-summary
-
-📁 Let op:
-Gebruik een '.code-zippy-ignore' bestand in je projectfolder om folders uit te sluiten.
-
-Gemaakt met ❤️ voor LLM-gebruik.`);
-  process.exit(0);
-}
-
-
-const absoluteSource = path.resolve(sourceFolder);
-const fileName = '_code-zippy-output';
-const outputFolder = path.join(process.cwd(), fileName);
-const zipOutputPath = path.join(process.cwd(), fileName + '.zip');
-
-// Lees .code-zippy-ignore
 function readIgnoreList(root) {
-  const ignorePath = path.join(root, '.code-zippy-ignore');
-  if (!fs.existsSync(ignorePath)) return [];
-  const lines = fs.readFileSync(ignorePath, 'utf-8').split('\n');
-  return lines.map(line => line.trim()).filter(line => line && !line.startsWith('#'));
+  const customIgnore = path.join(root, ignoreFile);
+  const gitIgnore = path.join(root, '.gitignore');
+  const file = fs.existsSync(customIgnore)
+    ? customIgnore
+    : fs.existsSync(gitIgnore)
+      ? gitIgnore
+      : null;
+  if (!file) return [];
+  // console.log(`📄 Gebruik ignore-bestand: ${file}`);
+  return fs.readFileSync(file, 'utf-8')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('#'));
 }
 
 function shouldIgnore(filePath, ignoreList) {
-  return ignoreList.some(pattern => {
-    return filePath.includes(pattern);
-  });
+  return ignoreList.some(pattern => filePath.includes(pattern));
 }
 
 function getAllFiles(dirPath, arrayOfFiles = [], ignoreList = []) {
@@ -98,23 +84,9 @@ function getFolderStructure(dir, ignoreList, prefix = '') {
 function readFiles(files) {
   return files.map(file => ({
     path: file,
-    relativePath: path.relative(absoluteSource, file),
+    relativePath: path.relative(sourceFolder, file),
     content: fs.readFileSync(file, 'utf-8'),
   }));
-}
-function readFiles2(files) {
-  return files.map(file => ({
-    relativePath: path.relative(absoluteSource, file),
-    content: fs.readFileSync(file, 'utf-8'),
-  }));
-}
-
-function chunkContent(content, chunkSize = 2000) {
-  const chunks = [];
-  for (let i = 0; i < content.length; i += chunkSize) {
-    chunks.push(content.slice(i, i + chunkSize));
-  }
-  return chunks;
 }
 
 function summarizeFile(file) {
@@ -125,6 +97,14 @@ function summarizeFile(file) {
     characters: file.content.length,
     preview: lines.slice(0, 5).join('\n'),
   };
+}
+
+function chunkContent(content, chunkSize = 2000) {
+  const chunks = [];
+  for (let i = 0; i < content.length; i += chunkSize) {
+    chunks.push(content.slice(i, i + chunkSize));
+  }
+  return chunks;
 }
 
 function createZip(folderPath, outputZipPath) {
@@ -146,19 +126,28 @@ function createZip(folderPath, outputZipPath) {
 
 (async () => {
   try {
-    const ignoreList = readIgnoreList(absoluteSource);
+    const ignoreList = readIgnoreList(sourceFolder);
 
     await fs.remove(outputFolder);
     await fs.ensureDir(outputFolder);
 
-    const structure = getFolderStructure(absoluteSource, ignoreList);
+    const structure = getFolderStructure(sourceFolder, ignoreList);
     await fs.writeFile(path.join(outputFolder, 'structure.txt'), structure);
 
-    const filePaths = getAllFiles(absoluteSource, [], ignoreList);
+    if (options.structure) {
+      console.log('\n📁 Mappenstructuur:\n');
+      console.log(structure);
+      return;
+    }
+
+    const filePaths = getAllFiles(sourceFolder, [], ignoreList);
     const files = readFiles(filePaths);
 
-    const files2 = readFiles2(filePaths);
-    await fs.writeJSON(path.join(outputFolder, 'files.json'), files2, { spaces: 2 });
+    const filesData = files.map(f => ({
+      relativePath: f.relativePath,
+      content: f.content
+    }));
+    await fs.writeJSON(path.join(outputFolder, 'files.json'), filesData, { spaces: 2 });
 
     for (const file of files) {
       const targetPath = path.join(outputFolder, 'files', file.relativePath);
@@ -166,21 +155,25 @@ function createZip(folderPath, outputZipPath) {
       await fs.writeFile(targetPath, file.content);
     }
 
-    const summaries = files.map(f => summarizeFile(f));
-    await fs.writeJSON(path.join(outputFolder, 'summaries.json'), summaries, { spaces: 2 });
+    if (options.summary) {
+      const summaries = files.map(f => summarizeFile(f));
+      await fs.writeJSON(path.join(outputFolder, 'summaries.json'), summaries, { spaces: 2 });
+    }
 
-    for (const file of files) {
-      const chunks = chunkContent(file.content);
-      const chunkFolder = path.join(outputFolder, 'chunks', file.relativePath);
-      for (let i = 0; i < Math.min(chunks.length, 2); i++) {
-        const chunkFile = `${chunkFolder}.chunk${i + 1}.txt`;
-        await fs.ensureDir(path.dirname(chunkFile));
-        await fs.writeFile(chunkFile, chunks[i]);
+    if (options.chunks) {
+      for (const file of files) {
+        const chunks = chunkContent(file.content);
+        const chunkFolder = path.join(outputFolder, 'chunks', file.relativePath);
+        for (let i = 0; i < Math.min(chunks.length, 2); i++) {
+          const chunkFile = `${chunkFolder}.chunk${i + 1}.txt`;
+          await fs.ensureDir(path.dirname(chunkFile));
+          await fs.writeFile(chunkFile, chunks[i]);
+        }
       }
     }
 
     await createZip(outputFolder, zipOutputPath);
-    fs.moveSync(zipOutputPath, path.join(outputFolder, fileName + '.zip'), { overwrite: true });
+    fs.moveSync(zipOutputPath, path.join(outputFolder, program.name() + '.zip'), { overwrite: true });
     console.log('🎉 Klaar!');
   } catch (err) {
     console.error('❌ Fout:', err);

@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "description": "CLI-tool om een codefolder te analyseren en zippen voor LLM-gebruik",
   "main": "bin/index.js",
+  "scripts": {
+    "start": "sh example.sh"
+  },
   "bin": {
     "code-zippy": "./bin/index.js"
   },
   "dependencies": {
     "archiver": "^5.3.1",
+    "commander": "^13.1.0",
     "fs-extra": "^11.1.1"
   },
   "author": "Matthijs Kamstra",
